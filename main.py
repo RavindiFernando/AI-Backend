@@ -5,11 +5,12 @@ from typing import Optional
 app = FastAPI(title="Task API", version="1.0")
 
 # In-memory "database"
-tasks = [
+DEFAULT_TASKS = [
     {"id": 1, "title": "Buy milk", "done": False},
     {"id": 2, "title": "Read chapter 3", "done": False},
     {"id": 3, "title": "Submit assignment", "done": True},
 ]
+tasks = [t.copy() for t in DEFAULT_TASKS]
 next_id = 4
 
 
@@ -32,9 +33,17 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/tasks", summary="List all tasks")
-def list_tasks():
-    return tasks
+@app.get("/tasks", summary="List tasks, optionally filtered by done status or search term")
+def list_tasks(done: Optional[bool] = None, search: Optional[str] = None):
+    result = tasks
+
+    if done is not None:
+        result = [t for t in result if t["done"] == done]
+
+    if search is not None:
+        result = [t for t in result if search.lower() in t["title"].lower()]
+
+    return result
 
 
 @app.get("/tasks/{task_id}", summary="Get a single task by id")
@@ -43,6 +52,13 @@ def get_task(task_id: int):
         if task["id"] == task_id:
             return task
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+
+@app.get("/stats", summary="Get task counts")
+def get_stats():
+    total = len(tasks)
+    done_count = len([t for t in tasks if t["done"]])
+    return {"total": total, "done": done_count, "open": total - done_count}
 
 
 @app.post("/tasks", status_code=201, summary="Create a new task")
@@ -78,3 +94,11 @@ def delete_task(task_id: int):
             tasks.pop(i)
             return
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+
+@app.post("/reset", summary="Reset tasks back to the default seed data")
+def reset_tasks():
+    global tasks, next_id
+    tasks = [t.copy() for t in DEFAULT_TASKS]
+    next_id = 4
+    return {"message": "Tasks reset to default", "tasks": tasks}
