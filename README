@@ -46,3 +46,25 @@ content-type: application/json
 ## Notes
 
 Data is stored in memory only. It resets whenever the server restarts. Persistent storage is planned for a future stage.
+
+## AI vs me
+
+### Prompt used for the first attempt
+
+Build a REST API for managing a to-do list using FastAPI. It should have these endpoints: `GET /`, `GET /health`, `GET /tasks`, `GET /tasks/{id}`, `POST /tasks`, `PUT /tasks/{id}`, `DELETE /tasks/{id}`, `GET /stats`, and `POST /reset`. For creating a task, require a `title` field and return `400` if it is missing or empty. Return `404` when a task is not found. Store the data in memory only. Include Swagger UI at `/docs` for interactive API documentation. Use integer ids, boolean `done` values, `201` for successful creation, `204` with an empty body for successful deletion, and useful route summaries.
+
+### First attempt review
+
+The first generated file is preserved at `ai-version/first_attempt.py`. It started, but the checkpoint curls exposed these differences from the prompt and my hand-built API:
+
+1. It omitted `/health`, `/stats`, and `/reset`, even though the prompt required them.
+2. `POST /tasks` returned the default `200` status instead of the required `201`, and the shared input model made `done` part of the update contract rather than supporting a partial update.
+3. It returned `200` with `{"message":"Task deleted"}` from `DELETE`, instead of `204` with an empty body.
+4. It did not explicitly reject empty or whitespace-only titles with `400`; missing titles would also use FastAPI's default `422` validation response.
+5. It did not add route summaries, so it did not fulfill the prompt's request for informative Swagger UI.
+
+The first attempt handled the core list, lookup, create, update, and missing-id paths, but it quietly made assumptions about the response contract and validation rules. Those are exactly the details the prompt needed to pin down.
+
+### Rematch
+
+For the rematch, I kept the AI version quarantined in `ai-version/main.py`, used separate create and partial-update schemas, added every requested route and route summary, set the `201` and `204` responses, and converted missing or empty titles into `400` errors. The rematch now matches the prompt and the hand-built API's required behavior while remaining isolated from the submission file.
